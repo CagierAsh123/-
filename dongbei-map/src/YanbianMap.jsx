@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useMemo, useEffect, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { countyFills, countyBorders, outerBorder } from "./data/yanbian/paths";
 import { mapData } from "./data/yanbian/mapData";
-import { DEFAULT_STAMPS, DEFAULT_CUSTOM_MARKERS } from "./data/yanbian/userData";
+import { DEFAULT_STAMPS, DEFAULT_CUSTOM_MARKERS, DEFAULT_VISUAL_SETTINGS, DEFAULT_MANUAL_POS } from "./data/yanbian/userData";
 
 /* ═══════ constants ═══════ */
 const SVG_W = 878;
@@ -48,6 +48,9 @@ function loadManualPos() {
     const s = localStorage.getItem("yanbian_manual_pos_v1");
     if (s) return JSON.parse(s);
   } catch { /* ignore */ }
+  if (DEFAULT_MANUAL_POS && Object.keys(DEFAULT_MANUAL_POS).length) {
+    return { ...DEFAULT_MANUAL_POS };
+  }
   return {};
 }
 
@@ -131,6 +134,9 @@ function loadVisualSettings() {
     const s = localStorage.getItem("yanbian_vis_v1");
     if (s) return { ...DEFAULT_VIS, ...JSON.parse(s) };
   } catch { /* ignore */ }
+  if (DEFAULT_VISUAL_SETTINGS && Object.keys(DEFAULT_VISUAL_SETTINGS).length) {
+    return { ...DEFAULT_VIS, ...DEFAULT_VISUAL_SETTINGS };
+  }
   return { ...DEFAULT_VIS };
 }
 
@@ -361,7 +367,7 @@ function GeoGrid({ project, show }) {
 /* ═══════ light beam ═══════ */
 
 function LightBeam({ x, y, zoom }) {
-  const s = 1 / zoom;
+  const s = Math.max(1 / zoom, 7 / 10);
   const beamH = 120 * s;
   const beamW = 18 * s;
   return (
@@ -487,7 +493,7 @@ function InfoCard({ spot, lang, setLang, onClose }) {
 function Marker({ spot, index, active, zoom, onClick, project, manualPos }) {
   const projected = project(spot.coords[0], spot.coords[1]);
   const [svgX, svgY] = manualPos?.[spot.id] || MANUAL_POS[spot.id] || projected;
-  const s = 1 / zoom;
+  const s = Math.max(1 / zoom, 7 / 10);
   const r = 2.5 * s;
   const glowR = 6 * s;
   const emojiSize = (active ? 14 : 10) * s;
@@ -639,7 +645,11 @@ function DebugPanel({ coeffs, anchors, onReset, onSave, onExitNoSave }) {
 
 /* ═══════ custom marker panel ═══════ */
 
-const CM_EMOJI_PICKS = ["📍", "⭐", "🏠", "🏕️", "🎯", "💎", "🔥", "🌟", "🏮", "🎪", "🗿", "🪨"];
+const CM_EMOJI_PICKS = [
+  "📍", "⭐", "🏠", "🏕️", "🎯", "💎", "🔥", "🌟", "🏮", "🎪", "🗿", "🪨",
+  "🍜", "🥬", "🍲", "🌭", "🍡", "🍙", "🥩", "🍳", "🥘", "🥔",
+  "🍚", "🥟", "🍖", "🧆", "🫕", "🍢", "🥗", "🍱",
+];
 
 function CustomMarkerPanel({ customMarkers, editingCm, setEditingCm, placingCm, setPlacingCm, onSaveCm, onDeleteCm, onExportCm, onExit }) {
   const [form, setForm] = useState(null);
@@ -648,7 +658,7 @@ function CustomMarkerPanel({ customMarkers, editingCm, setEditingCm, placingCm, 
   // sync form when editingCm changes
   useEffect(() => {
     if (editingCm) {
-      setForm({ emoji: editingCm.emoji, content: JSON.parse(JSON.stringify(editingCm.content)) });
+      setForm({ emoji: editingCm.emoji, color: editingCm.color || "#00f3ff", content: JSON.parse(JSON.stringify(editingCm.content)) });
     } else {
       setForm(null);
     }
@@ -663,7 +673,7 @@ function CustomMarkerPanel({ customMarkers, editingCm, setEditingCm, placingCm, 
 
   const handleSave = () => {
     if (!form || !form.content.zh.title.trim()) return;
-    onSaveCm({ ...editingCm, emoji: form.emoji, content: form.content });
+    onSaveCm({ ...editingCm, emoji: form.emoji, color: form.color, content: form.content });
     setEditingCm(null);
   };
 
@@ -771,6 +781,28 @@ function CustomMarkerPanel({ customMarkers, editingCm, setEditingCm, placingCm, 
                   }}
                 >{em}</button>
               ))}
+            </div>
+          </div>
+
+          {/* color picker */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 9, opacity: 0.4, marginBottom: 4 }}>标点颜色</div>
+            <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+              {["#00f3ff", "#38bdf8", "#a855f7", "#f43f5e", "#f97316", "#facc15", "#4ade80", "#ec4899", "#ffffff"].map((c) => (
+                <button
+                  key={c} onClick={() => setForm((f) => ({ ...f, color: c }))}
+                  style={{
+                    width: 22, height: 22, borderRadius: "50%", cursor: "pointer",
+                    background: c, border: form.color === c ? "2px solid #fff" : "2px solid transparent",
+                    boxShadow: form.color === c ? `0 0 6px ${c}` : "none",
+                  }}
+                />
+              ))}
+              <input
+                type="color" value={form.color}
+                onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                style={{ width: 22, height: 22, padding: 0, border: "none", background: "none", cursor: "pointer" }}
+              />
             </div>
           </div>
 
@@ -1263,7 +1295,7 @@ export default function YanbianMap() {
       const [sx, sy] = screenToSvg(e.clientX, e.clientY);
       const pos = [Math.round(sx * 10) / 10, Math.round(sy * 10) / 10];
       const newCm = {
-        id: nextCmId(), emoji: "📍", svgPos: pos, coords: [0, 0],
+        id: nextCmId(), emoji: "📍", color: "#00f3ff", svgPos: pos, coords: [0, 0],
         content: EMPTY_CONTENT(),
       };
       setCustomMarkers((prev) => { const next = [...prev, newCm]; saveCustomMarkers(next); return next; });
@@ -1452,7 +1484,7 @@ export default function YanbianMap() {
 
   // export all user data (stamps + custom markers) for hardcoding into userData.js
   const exportAll = useCallback(() => {
-    const data = { stamps, customMarkers, visualSettings: vis };
+    const data = { stamps, customMarkers, visualSettings: vis, manualPos };
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -1461,7 +1493,7 @@ export default function YanbianMap() {
     a.download = `yanbian-map-data-${new Date().toISOString().slice(0,10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [stamps, customMarkers, vis]);
+  }, [stamps, customMarkers, vis, manualPos]);
 
   const importAll = useCallback(() => {
     const input = document.createElement("input");
@@ -1486,6 +1518,10 @@ export default function YanbianMap() {
             const v = { ...DEFAULT_VIS, ...data.visualSettings };
             setVis(v);
             saveVisualSettings(v);
+          }
+          if (data.manualPos && typeof data.manualPos === "object") {
+            setManualPos(data.manualPos);
+            localStorage.setItem("yanbian_manual_pos_v1", JSON.stringify(data.manualPos));
           }
           alert(`导入成功！\n${data.stamps?.length || 0} 个画笔 + ${data.customMarkers?.length || 0} 个标点`);
         } catch { alert("JSON 格式错误"); }
@@ -1614,30 +1650,31 @@ export default function YanbianMap() {
         {/* custom markers */}
         {customMarkers.map((cm, i) => {
           const [svgX, svgY] = cm.svgPos;
-          const s = 1 / zoom;
+          const s = Math.max(1 / zoom, 7 / 10);
           const r = 2.5 * s;
           const glowR = 6 * s;
           const emojiSize = (activeId === cm.id ? 14 : 10) * s;
           const emojiY = svgY - 6 * s;
+          const cc = cm.color || "#00f3ff";
           return (
             <g key={cm.id} onClick={(e) => { e.stopPropagation(); if (!cmMode) handleMarkerClick(cm.id); }} style={{ cursor: cmMode ? "default" : "pointer" }}>
               <circle cx={svgX} cy={svgY - 3 * s} r={12 * s} fill="transparent" />
               <circle
-                cx={svgX} cy={svgY} r={glowR} fill="none" stroke="#00f3ff" strokeWidth={0.6 * s}
+                cx={svgX} cy={svgY} r={glowR} fill="none" stroke={cc} strokeWidth={0.6 * s}
                 className="mk-breathe" style={{ animationDelay: `${i * 0.12}s` }}
               />
               <circle
                 cx={svgX} cy={emojiY} r={8 * s} fill="rgba(250,204,21,0.06)"
                 className="mk-halo" style={{ animationDelay: `${i * 0.12}s` }}
               />
-              <circle cx={svgX} cy={svgY} r={r} fill="#00f3ff" opacity={activeId === cm.id ? 1 : 0.7} />
+              <circle cx={svgX} cy={svgY} r={r} fill={cc} opacity={activeId === cm.id ? 1 : 0.7} />
               <text
                 x={svgX} y={emojiY} textAnchor="middle" dominantBaseline="central" fontSize={emojiSize}
                 style={{ fontFamily: EMOJI_FONT, filter: "url(#emojiGold)", pointerEvents: "none" }}
               >{cm.emoji}</text>
               {activeId === cm.id && (
                 <text x={svgX} y={svgY + 6 * s} textAnchor="middle" fontSize={3.5 * s}
-                  fill="#00f3ff" opacity={0.7} fontFamily="'Inter', system-ui, sans-serif"
+                  fill={cc} opacity={0.7} fontFamily="'Inter', system-ui, sans-serif"
                   style={{ pointerEvents: "none" }}
                 >{cm.content.zh.title || "自定义标点"}</text>
               )}

@@ -1,0 +1,22 @@
+[root@iZbp1b762k6pvxlaw2iu3mZ www]# systemctl status nginx
+● nginx.service - The nginx HTTP and reverse proxy server
+   Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; vendor preset: disabled)
+   Active: active (running) since Wed 2026-04-22 20:00:54 CST; 16min ago
+ Main PID: 653692 (nginx)
+    Tasks: 3 (limit: 11716)
+   Memory: 2.3M
+   CGroup: /system.slice/nginx.service
+           ├─653692 nginx: master process /usr/sbin/nginx
+           ├─653693 nginx: worker process
+           └─653694 nginx: worker process
+
+Apr 22 20:00:54 iZbp1b762k6pvxlaw2iu3mZ systemd[1]: Starting The nginx HTTP and reverse proxy server...
+Apr 22 20:00:54 iZbp1b762k6pvxlaw2iu3mZ nginx[653687]: nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+Apr 22 20:00:54 iZbp1b762k6pvxlaw2iu3mZ nginx[653687]: nginx: configuration file /etc/nginx/nginx.conf test is successful
+Apr 22 20:00:54 iZbp1b762k6pvxlaw2iu3mZ systemd[1]: Started The nginx HTTP and reverse proxy server.
+[root@iZbp1b762k6pvxlaw2iu3mZ www]# ss -tlnp | grep 4040
+[root@iZbp1b762k6pvxlaw2iu3mZ www]# ls /var/www/yanbian/dongbei-map/dist/index.html
+/var/www/yanbian/dongbei-map/dist/index.html
+[root@iZbp1b762k6pvxlaw2iu3mZ www]# curl -I http://localhost:4040
+curl: (7) Failed to connect to localhost port 4040: Connection refused
+[root@iZbp1b762k6pvxlaw2iu3mZ www]# 
