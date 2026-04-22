@@ -1,4 +1,26 @@
 .claude/
 *.7z
 deploy.md
-dongbei-map/dist.7z
+
+# 素材 / 临时文件
+中华人民共和国.svg
+辽宁省.svg
+吉林省.svg
+黑龙江省.svg
+延边朝鲜族自治州.svg
+log.txt
+dongbei-map/dist.tar.gz
+
+# 开发依赖（服务器不需要）
+dongbei-map/node_modules/
+dongbei-map/package-lock.json
+
+# 源码（服务器只需要 dist）
+dongbei-map/src/
+dongbei-map/public/
+dongbei-map/vite.config.js
+dongbei-map/package.json
+dongbei-map/index.html
+sync-data.mjs
+build.bat
+food-data.md
